@@ -188,6 +188,6 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
     print(new_archives)
 
-    auth_token = os.environ['GH_API_TOKEN']
+    auth_token = os.environ['GITHUB_TOKEN']
     release_id = create_release(auth_token, new_archives, released_versions)
     upload_assets(auth_token, release_id, new_archives)
