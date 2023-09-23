@@ -160,7 +160,7 @@ def create_release_body(updated_platforms: Dict[str, Dict[str, Union[str, int]]]
     version_change_strings = []
     for n, board_info in enumerate(sorted(updated_platforms.items(), key=lambda x: x[1]['version'])):
         board, info = board_info
-        version_change_strings.append(f"1. `{board:24} {'.'.join(released_versions.get(board)) if board in released_versions else 'new'} -> {info['version']}`")
+        version_change_strings.append(f"1. `{board:24} {'.'.join(map(str, released_versions.get(board))) if board in released_versions else 'new'} -> {info['version']}`")
                                       
     return "New versions have been released for the following boards:\n" + '\n'.join(version_change_strings)
 
