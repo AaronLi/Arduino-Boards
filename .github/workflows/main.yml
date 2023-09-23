@@ -18,3 +18,5 @@ jobs:
       run: pip install -r requirements.txt
     - name: Run release creator
       run: python create_release.py
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
