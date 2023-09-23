@@ -146,6 +146,14 @@ static const uint8_t DAC0 = PIN_DAC0;
 #define PIN_USB_DM          (18ul)
 #define PIN_USB_DP          (19ul)
 
+#define SPI_INTERFACES_COUNT 1
+#define PIN_SPI_MISO         (16u)
+#define PIN_SPI_MOSI         (17u)
+#define PIN_SPI_SCK          (22u)
+#define PERIPH_SPI           sercom4
+#define PAD_SPI_TX           SPI_PAD_3_SCK_1
+#define PAD_SPI_RX           SERCOM_RX_PAD_2
+
 #ifdef __cplusplus
 }
 #endif
