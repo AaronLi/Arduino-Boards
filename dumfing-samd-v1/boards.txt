@@ -1,0 +1,83 @@
+# Copyright (c) 2014-2015 Arduino LLC.  All right reserved.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+menu.cache=Cache
+menu.speed=CPU Speed
+menu.opt=Optimize
+menu.maxqspi=Max QSPI
+menu.usbstack=USB Stack
+menu.debug=Debug
+
+# -----------------------------------
+# Ground Controller V3 (SAMD21)
+# -----------------------------------
+dmfg_gc_v3_m0.name=DMFG Ground Controller V3 (SAMD21)
+
+# VID/PID for Bootloader, Arduino & CircuitPython
+dmfg_gc_v3_m0.vid.0=0x239A
+dmfg_gc_v3_m0.pid.0=0x800F
+dmfg_gc_v3_m0.vid.1=0x239A
+dmfg_gc_v3_m0.pid.1=0x000F
+dmfg_gc_v3_m0.vid.2=0x239A
+dmfg_gc_v3_m0.pid.2=0x8012
+
+# Upload
+dmfg_gc_v3_m0.upload.tool=bossac18
+dmfg_gc_v3_m0.upload.protocol=sam-ba
+dmfg_gc_v3_m0.upload.maximum_size=262144
+dmfg_gc_v3_m0.upload.offset=0x2000
+dmfg_gc_v3_m0.upload.use_1200bps_touch=true
+dmfg_gc_v3_m0.upload.wait_for_upload_port=true
+dmfg_gc_v3_m0.upload.native_usb=true
+
+# Build
+dmfg_gc_v3_m0.build.mcu=cortex-m0plus
+dmfg_gc_v3_m0.build.f_cpu=48000000L
+dmfg_gc_v3_m0.build.usb_product="DMFG GC V3"
+dmfg_gc_v3_m0.build.usb_manufacturer="Dumfing"
+dmfg_gc_v3_m0.build.board=DMFG_GC_V3
+dmfg_gc_v3_m0.build.core=arduino
+dmfg_gc_v3_m0.build.extra_flags=-D__SAMD21G18A__ -DCRYSTALLESS -Ddmfg_gc_v3_m0 -DARM_MATH_CM0PLUS {build.usb_flags}
+dmfg_gc_v3_m0.build.ldscript=linker_scripts/gcc/flash_with_bootloader.ld
+dmfg_gc_v3_m0.build.openocdscript=scripts/openocd/daplink_samd21.cfg
+dmfg_gc_v3_m0.build.variant=dmfg_gc_v3_m0
+dmfg_gc_v3_m0.build.variant_system_lib=
+dmfg_gc_v3_m0.build.vid=0x239A
+dmfg_gc_v3_m0.build.pid=0x800F
+dmfg_gc_v3_m0.bootloader.tool=openocd
+dmfg_gc_v3_m0.bootloader.file=itsybitsyM0/bootloader-itsybitsy_m0-v2.0.0-adafruit.5.bin
+
+# Menu: Optimization
+dmfg_gc_v3_m0.menu.opt.small=Small (-Os) (standard)
+dmfg_gc_v3_m0.menu.opt.small.build.flags.optimize=-Os
+dmfg_gc_v3_m0.menu.opt.fast=Fast (-O2)
+dmfg_gc_v3_m0.menu.opt.fast.build.flags.optimize=-O2
+dmfg_gc_v3_m0.menu.opt.faster=Faster (-O3)
+dmfg_gc_v3_m0.menu.opt.faster.build.flags.optimize=-O3
+dmfg_gc_v3_m0.menu.opt.fastest=Fastest (-Ofast)
+dmfg_gc_v3_m0.menu.opt.fastest.build.flags.optimize=-Ofast
+dmfg_gc_v3_m0.menu.opt.dragons=Here be dragons (-Ofast -funroll-loops)
+dmfg_gc_v3_m0.menu.opt.dragons.build.flags.optimize=-Ofast -funroll-loops
+
+# Menu: USB Stack
+dmfg_gc_v3_m0.menu.usbstack.arduino=Arduino
+dmfg_gc_v3_m0.menu.usbstack.tinyusb=TinyUSB
+dmfg_gc_v3_m0.menu.usbstack.tinyusb.build.flags.usbstack=-DUSE_TINYUSB
+
+# Menu: Debug
+dmfg_gc_v3_m0.menu.debug.off=Off
+dmfg_gc_v3_m0.menu.debug.on=On
+dmfg_gc_v3_m0.menu.debug.on.build.flags.debug=-g
