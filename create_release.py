@@ -1,7 +1,11 @@
 import json
-import requests
+import asyncio
+import aiohttp
+import aiofiles
+import aiofiles.os
+import aiofiles.tempfile
+import os.path as path
 import os
-import tempfile
 import tarfile
 import hashlib
 from typing import Dict, Union, List
@@ -24,7 +28,7 @@ def version_ordering(a: List[int], b: List[int]):
             return 1
     return 0
 
-def get_released_versions(per_page=30):
+async def get_released_versions(session: aiohttp.ClientSession, per_page=30):
     """
     Retrieves the released versions of the Arduino Boards from the GitHub API.
 
@@ -37,38 +41,42 @@ def get_released_versions(per_page=30):
     released_versions = {}
     page_number = 0
     while True:
-        releases = requests.get('https://api.github.com/repos/AaronLi/Arduino-Boards/releases', headers={"accept": "application/vnd.github+json", 'per_page':str(per_page), 'page':str(page_number), "X-Github-Api-Version": '2022-11-28'}).json()
-        for release in releases:
-            for asset in release['assets']:
-                version, hash_platform_file = asset['name'].split('_', 1)
-                hash, platform_file = hash_platform_file.split('_', 1)
-                platform, extension = platform_file.split('.', 1)
-                print(f"Version {version} for {platform} filetype {extension} with sha256 {hash}")
-                version = list(map(int, version.split('.')))
-                if platform not in released_versions or version_ordering(version, released_versions[platform]) > 0:
-                    released_versions[platform] = version
+        async with session.get('https://api.github.com/repos/AaronLi/Arduino-Boards/releases', headers={'accept': 'application/vnd.github+json', 'per_page': str(per_page), 'page':str(page_number), "X-Github-Api-Version": '2022-11-28'}) as req:
+            releases = await req.json()
+            for release in releases:
+                for asset in release['assets']:
+                    if asset['name'].startswith('manifest'):
+                        continue
+                    version, hash_platform_file = asset['name'].split('_', 1)
+                    hash, platform_file = hash_platform_file.split('_', 1)
+                    platform, extension = platform_file.split('.', 1)
+                    print(f"Version {version} for {platform} filetype {extension} with sha256 {hash}")
+                    version = list(map(int, version.split('.')))
+                    if platform not in released_versions or version_ordering(version, released_versions[platform]) > 0:
+                        released_versions[platform] = version
 
-        if len(releases) < per_page:
-            break
-        page_number += 1
+            if len(releases) < per_page:
+                break
+            page_number += 1
     return released_versions
 
-def get_commited_versions():
+async def get_commited_versions():
     """
     Returns a dictionary containing the version numbers of each board in the 'platforms' directory that has a 'platform.txt' file.
     The dictionary keys are the board names and the values are lists of integers representing the version numbers.
     """
     commit_versions = {}
-    for board in os.listdir('platforms'):
-        config_file = os.path.join('platforms', board, 'platform.txt')
-        if not os.path.exists(config_file):
+
+    for platform in await aiofiles.os.listdir('platforms'):
+        config_file = path.join('platforms', platform, 'platform.txt')
+        if not await aiofiles.os.path.exists(config_file):
             continue
-        
-        with open(config_file) as f:
-            for line in f:
+    
+        async with aiofiles.open(config_file) as f:
+            async for line in f:
                 if line.startswith('version'):
                     version = line.split('=', 1)[1].strip()
-                    commit_versions[board] = list(map(int, version.split('.')))
+                    commit_versions[platform] = list(map(int, version.split('.')))
                     break
     return commit_versions
 
@@ -98,7 +106,7 @@ def get_updated_platforms(released_versions, commited_versions):
                     raise ValueError("Board {} has older version than release: {} < {}".format(platform, version, released_versions[platform]))
     return updated
 
-def create_platform_archives(work_dir, updated_platforms):
+async def create_platform_archives(work_dir, updated_platforms):
     """
     Create compressed archives for updated boards.
 
@@ -114,18 +122,18 @@ def create_platform_archives(work_dir, updated_platforms):
         version_str = '.'.join(map(str, version))
         print(f"Board {platform} has new version {version_str}")
 
-        compressed_file_path = os.path.join(work_dir, f"{platform}.tar.bz2")
+        compressed_file_path = path.join(work_dir, f"{platform}.tar.bz2")
         with tarfile.open(compressed_file_path, "w:bz2") as tar:
             
-            tar.add(os.path.join('platforms', platform), arcname=platform)
+            tar.add(path.join('platforms', platform), arcname=platform)
 
-        with open(compressed_file_path, 'rb') as f:
-            sha256 = hashlib.sha256(f.read()).hexdigest()
+        async with aiofiles.open(compressed_file_path, 'rb') as f:
+            sha256 = hashlib.sha256(await f.read()).hexdigest()
         
         # rename file to {version}_{sha256}_{platform}.tar.bz2
         final_file_path = f"{version_str}_{sha256}_{platform}.tar.bz2"
-        new_file_path = os.path.join(tmpdir, final_file_path)
-        os.rename(compressed_file_path, new_file_path)
+        new_file_path = path.join(work_dir, final_file_path)
+        await aiofiles.os.rename(compressed_file_path, new_file_path)
 
         new_archives[platform] = {"local_path": new_file_path, "version": version_str, "filename": final_file_path}
     return new_archives
@@ -156,29 +164,29 @@ def create_release_body(updated_platforms: Dict[str, Dict[str, Union[str, int]]]
                                       
     return "New versions have been released for the following boards:\n" + '\n'.join(version_change_strings)
 
-def create_release(auth_token: str, updated_platforms: Dict[str, Dict[str, Union[str, int]]], released_platforms: Dict[str, List[int]]):
+async def create_release(session: aiohttp.ClientSession, auth_token: str, updated_platforms: Dict[str, Dict[str, Union[str, int]]], released_platforms: Dict[str, List[int]]):
     release_body = {
                 "tag_name": create_tag_name(updated_platforms),
                 "draft": True,
                 "name": create_release_title(updated_platforms),
                 "body": create_release_body(updated_platforms, released_versions=released_platforms),
             }
-
-    response = requests.post(
+    async with session.post(
         'https://api.github.com/repos/AaronLi/Arduino-Boards/releases',
           headers={
               "accept": "application/vnd.github+json",
                'Authorization': f'Bearer {auth_token}',
                "X-Github-Api-Version": '2022-11-28'
             },
-            data=json.dumps(release_body))
-    
-    return response.json()['id']
+            data=json.dumps(release_body)) as req:
+        json_response = await req.json()
+        print(json_response)
+        return json_response['id']
 
-def upload_assets(auth_token: str, release_id: str, updated_platforms: Dict[str, Dict[str, Union[str, int]]]):
+async def upload_assets(session: aiohttp.ClientSession, auth_token: str, release_id: str, updated_platforms: Dict[str, Dict[str, Union[str, int]]]):
     for board, info in updated_platforms.items():
-        with open(info['local_path'], 'rb') as f:
-            response = requests.post(
+        async with aiofiles.open(info['local_path'], 'rb') as f:
+            async with session.post(
                 f'https://uploads.github.com/repos/AaronLi/Arduino-Boards/releases/{release_id}/assets?name={updated_platforms[board]["filename"]}',
                 headers={
                     "accept": "application/vnd.github+json",
@@ -186,34 +194,35 @@ def upload_assets(auth_token: str, release_id: str, updated_platforms: Dict[str,
                     "X-Github-Api-Version": '2022-11-28',
                     'Content-Type': 'application/octet-stream'
                 },
-                data=f.read())
-            print(response.json()['name'], response.json()['state'])
+                data=await f.read()) as req:
+                response_json = await req.json()
+                print(response_json['name'], response_json['state'])
 
-def upload_manifest(auth_token: str, release_id: str, released_platforms, updated_platforms):
+async def upload_manifest(session: aiohttp.ClientSession, auth_token: str, release_id: str, released_platforms, updated_platforms):
     combined_platforms = {**released_platforms, **updated_platforms}
     manifest = {}
     for platform in combined_platforms:
-        platform_directory = os.path.join('platforms', platform)
-        platform_boards = os.path.join(platform_directory, 'boards.txt')
-        variants_directory = os.path.join(platform_directory, 'variants')
-        boards = set(os.path.basename(os.path.normpath(board)) for board in os.listdir(variants_directory))
+        platform_directory = path.join('platforms', platform)
+        platform_boards = path.join(platform_directory, 'boards.txt')
+        variants_directory = path.join(platform_directory, 'variants')
+        boards = set(path.basename(path.normpath(board)) for board in await aiofiles.os.listdir(variants_directory))
         board_names = []
-        with open(platform_boards) as f:
-            for line in f:
+        async with aiofiles.open(platform_boards) as f:
+            async for line in f:
                 if 'name' in line:
                     board_id, line_name = line.split('=', 1)
                     board_name = line_name.strip()
                     if board_id.split('.')[0] in boards:
                         board_names.append(board_name)
 
-        with open(os.path.join(platform_directory, 'architecture.txt')) as f:
-            architecture = f.read().strip()
+        async with aiofiles.open(path.join(platform_directory, 'architecture.txt')) as f:
+            architecture = (await f.read()).strip()
         manifest[platform] = {
             'boards': board_names,
             'architecture': architecture,
             'version': '.'.join(map(str, combined_platforms[platform]))
         }
-    response = requests.post(
+    async with session.post(
                 f'https://uploads.github.com/repos/AaronLi/Arduino-Boards/releases/{release_id}/assets?name=manifest.json',
                 headers={
                     "accept": "application/vnd.github+json",
@@ -221,31 +230,36 @@ def upload_manifest(auth_token: str, release_id: str, released_platforms, update
                     "X-Github-Api-Version": '2022-11-28',
                     'Content-Type': 'application/octet-stream'
                 },
-                data=json.dumps(manifest))
-    print(response.json()['name'], response.json()['state'])
+                data=json.dumps(manifest)) as req:
+        response = await req.json()
+        print(response['name'], response['state'])
 
 
+async def main():
+    async with aiohttp.ClientSession() as session:
+        released_versions, commit_versions = await asyncio.gather(get_released_versions(session), get_commited_versions())
+        print('Versions in release:', released_versions)
+        print('Versions in commit:', commit_versions)
 
-released_versions = get_released_versions()
-print('Versions in release:', released_versions)
+        updated = get_updated_platforms(released_versions, commit_versions)
+        print('Updated versions:', updated)
 
-commit_versions = get_commited_versions()
-print('Versions in commit:', commit_versions)
+        if not updated:
+            print("No updates found.")
+            exit()
 
-updated = get_updated_platforms(released_versions, commit_versions)
-print('Updated versions:', updated)
+        async with aiofiles.tempfile.TemporaryDirectory() as tmpdir:
+            
+            new_archives = await create_platform_archives(tmpdir, updated)
 
-if not updated:
-    print("No updates found.")
-    exit()
+            print(new_archives)
 
-with tempfile.TemporaryDirectory() as tmpdir:
-    
-    new_archives = create_platform_archives(tmpdir, updated)
-
-    print(new_archives)
-
-    auth_token = os.environ['GH_API_TOKEN']
-    release_id = create_release(auth_token, new_archives, released_versions)
-    upload_assets(auth_token, release_id, new_archives)
-    upload_manifest(auth_token, release_id, released_versions, updated)
+            auth_token = os.environ['GH_API_TOKEN']
+            release_id = await create_release(session, auth_token, new_archives, released_versions)
+            await asyncio.gather(
+                upload_assets(session, auth_token, release_id, new_archives),
+                upload_manifest(session, auth_token, release_id, released_versions, updated)
+                )
+        
+if __name__ == "__main__":
+    asyncio.run(main())
