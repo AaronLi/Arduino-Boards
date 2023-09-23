@@ -6,8 +6,6 @@ import tarfile
 import hashlib
 from typing import Dict, Union, List
 
-import requests
-
 def get_released_versions(per_page=30):
     """
     Retrieves the released versions of the Arduino Boards from the GitHub API.
