@@ -1,0 +1,2 @@
+requests ~= 2.31.0
+chevron ~= 0.14.0
