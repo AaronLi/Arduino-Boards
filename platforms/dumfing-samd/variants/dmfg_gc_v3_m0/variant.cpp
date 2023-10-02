@@ -88,30 +88,17 @@ Uart Serial1( &sercom0, PIN_SERIAL1_RX, PIN_SERIAL1_TX, PAD_SERIAL1_RX, PAD_SERI
 Uart Serial2( &sercom0, PIN_SERIAL2_RX, PIN_SERIAL2_TX, PAD_SERIAL2_RX, PAD_SERIAL2_TX ) ;
 Uart Serial4( &sercom0, PIN_SERIAL4_RX, PIN_SERIAL4_TX, PAD_SERIAL4_RX, PAD_SERIAL4_TX ) ;
 
-#ifndef DMFG_GC_V3_SERCOM0_OVERRIDE
 void SERCOM0_Handler()
 {
   Serial0.IrqHandler();
 }
-#endif
-
-#ifndef DMFG_GC_V3_SERCOM1_OVERRIDE
 void SERCOM1_Handler()
 {
   Serial1.IrqHandler();
 }
-#endif
 
-#ifndef DMFG_GC_V3_SERCOM2_OVERRIDE
+
 void SERCOM2_Handler()
 {
   Serial2.IrqHandler();
 }
-#endif
-
-#ifndef DMFG_GC_V3_SERCOM4_OVERRIDE
-void SERCOM4_Handler()
-{
-  Serial4.IrqHandler();
-}
-#endif
