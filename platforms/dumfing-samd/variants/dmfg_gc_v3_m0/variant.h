@@ -99,8 +99,8 @@ extern "C"
 #define PAD_SERIAL2_RX       (SERCOM_RX_PAD_1)
 
 // Serial4
-#define PIN_SERIAL4_RX       (6ul)
-#define PIN_SERIAL4_TX       (7ul)
+#define PIN_SERIAL4_RX       (7ul)
+#define PIN_SERIAL4_TX       (6ul)
 #define PAD_SERIAL4_TX       (UART_TX_PAD_2)
 #define PAD_SERIAL4_RX       (SERCOM_RX_PAD_3)
 
