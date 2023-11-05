@@ -158,7 +158,7 @@ static const uint8_t DAC0 = PIN_DAC0;
 #define PAD_SPI_TX           SPI_PAD_3_SCK_1
 #define PAD_SPI_RX           SERCOM_RX_PAD_0
 
-static const uint8_t SS = 24
+static const uint8_t SS = 24;
 
 #ifdef __cplusplus
 }
